@@ -1,0 +1,4 @@
+.vscode/
+CSP_contests/
+CSP_sim_scrapy/__pycache__/
+CSP_sim_scrapy/spiders/__pycache__/
