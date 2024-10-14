@@ -44,8 +44,7 @@ class ProblemPipeline:
                            f"{adapter['description_url']}")
 
         adapter["description"] = response.text
-        adapter["description_filepath"] = Path(spider.settings["OUTPUT_DIR"]) / \
-            adapter["contest_title"] / adapter["title"]
+        adapter["description_filepath"] = Path(spider.settings["OUTPUT_DIR"]) / adapter["contest_title"]
         adapter["description_filepath"].mkdir(parents=True, exist_ok=True)
         # 不写入，经过后面处理完文本内路径后写入
 
