@@ -58,7 +58,7 @@ class AttachmentPipeline:
         adapter = ItemAdapter(item)
         if not adapter.get("description"):  # 未经ProblemPipeline处理
             return item
-        if adapter.get("attachment_processed"):  # 已经处理过
+        if adapter.get("done"):  # 已经处理过
             return item
         adapter["done"] = True  # 标记已处理
 
