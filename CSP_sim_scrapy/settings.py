@@ -69,9 +69,11 @@ DEFAULT_REQUEST_HEADERS = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     "CSP_sim_scrapy.pipelines.ProblemPipeline": 300,
-    "CSP_sim_scrapy.pipelines.AttachmentPipeline": 400,
+    "CSP_sim_scrapy.pipelines.AttachmentFilesPipeline": 400,
+    # "CSP_sim_scrapy.pipelines.AttachmentPipeline": 400,
     "CSP_sim_scrapy.pipelines.DonePipeline": 500,
 }
+FILES_STORE = "./CSP_contests"
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html

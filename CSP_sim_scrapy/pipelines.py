@@ -29,7 +29,7 @@ class ProblemPipeline:
         adapter = ItemAdapter(item)
         if adapter.get("done"):
             return item
-
+        
         # numbered the problem title
         adapter["title"] = f"{adapter['problem_number']}.{adapter['title']}"
 
@@ -44,7 +44,7 @@ class ProblemPipeline:
                            f"{adapter['description_url']}")
 
         adapter["description"] = response.text
-        adapter["description_filepath"] = Path(spider.settings["OUTPUT_DIR"]) / adapter["contest_title"]
+        adapter["description_filepath"] = Path(spider.settings["OUTPUT_DIR"]) / adapter["contest_title"]  # 使用FilesPipeline应该用FILES_STORE
         adapter["description_filepath"].mkdir(parents=True, exist_ok=True)
         # 不写入，经过后面处理完文本内路径后写入
 
@@ -99,7 +99,7 @@ class AttachmentPipeline:
             )
 
         return item
-    
+
 
 class DonePipeline:
     """store the processed description"""
@@ -107,8 +107,61 @@ class DonePipeline:
         adapter = ItemAdapter(item)
         if not adapter.get("done"):
             return item
-        
+
         file_path = adapter["description_filepath"] / f"{adapter['title']}.md"
         file_path.write_text(adapter["description"], encoding="utf-8")
         adapter["description"] = ""  # 避免log大段文字
         return item
+
+
+# 使用内置的FilesPipeline替代我的AttachmentPipeline
+# 启用FilesPipeline时必须设置FILES_STORE = "/path/to/valid/dir"
+# 之后代码中的路径都应是相对路径
+from scrapy.pipelines.files import FilesPipeline
+
+class AttachmentFilesPipeline(FilesPipeline):
+    """extract attachment urls(zip and images) and download attachment"""
+    def file_path(self, request, response=None, info=None, *, item=None):
+        """use the url to extract file name"""
+        adapter = ItemAdapter(item)
+        file_name = request.url.split("/")[-1]
+        return f"{adapter['description_filepath']}/attachment/{file_name}"
+
+    def get_media_requests(self, item, info):
+        """extract attachment urls and add them to request"""
+        adapter = ItemAdapter(item)
+        if not adapter.get("description"):  # 未经ProblemPipeline处理
+            return []
+        if adapter.get("done"):  # 已经处理过
+            return []
+
+        description = adapter["description"]
+        attachment_related_urls = re.findall("/staticdata/down/.*?.zip", description)  # extract attachment url
+        image_related_urls = re.findall('src="(/staticdata/.*?)"', description)  # extract image urls
+        attachment_related_urls.extend(image_related_urls)
+
+        # 后续要替换原文，所以需要保存提取出来的原文路径
+        adapter["attachment_urls"] = attachment_related_urls
+        for url in attachment_related_urls:
+            url = urljoin("https://sim.csp.thusaac.com", url)
+            yield Request(url, callback=NO_CALLBACK)
+
+    def item_completed(self, results, item, info):
+        """replace path in description"""
+        """results结构见https://docs.scrapy.org/en/latest/topics/media-pipeline.html#scrapy.pipelines.files.FilesPipeline.get_media_requests"""
+        adapter = ItemAdapter(item)
+        for i, (success, result) in enumerate(results):
+            if not success:
+                continue
+            # replace path in the description
+            related_path = Path(result["path"]).relative_to(adapter["description_filepath"])
+            adapter["description"] = adapter["description"].replace(
+                adapter["attachment_urls"][i], str(related_path)
+            )
+        adapter["done"] = True  # 标记已处理
+        return item
+
+"""
+总结：FilesPipeline的使用和我写的AttachmentPipeline相似，
+只是说把一个方法拆成了两部分，且FilesPipeline对下载的内容进行了管理，更灵活
+"""
